@@ -3,7 +3,6 @@ import './App.css';
 import 'charts.css';
 import axios from 'axios'
 import Pokedex from './components/Pokedex'
-import Evolution from './components/Evolution'
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -20,11 +19,7 @@ const apiTypes = axios.create({
   baseURL: 'https://pokeapi.co/api/v2/type/'
 })
 
-const apiEvolution = axios.create({
-  baseURL: ''
-})
-
-const apiEvolutionSpecies = axios.create({
+const api = axios.create({
   baseURL: ''
 })
 
@@ -35,19 +30,19 @@ function App() {
   const [pokemon, setPokemon] = useState();
   const [species, setSpecies] = useState();
   const [types, setTypes] = useState();
-  const [evolutions, setEvolutions] = useState();
   const [evolutionChain, setEvolutionChain] = useState([])
   const pokemonNameRef = useRef();
   let loadAmount = 0;
 
   useEffect(() => {
-    loadAmount += 1;
+    loadAmount += 1
 
+    //make sure to run the code only once
     if (loadAmount === 1) {
-    console.log("Step 1");
+    //make sure the state is empty
     setEvolutionChain([]);
-    getSpecies("eevee");
-    getPokemon("eevee");
+    //run function to set states for pokemon data
+    updatePokemonData("133", true);
     }
   }, [])
 
@@ -58,124 +53,183 @@ function App() {
     return <div className="App">Loading...</div>;
   }
 
-  async function getPokemon(name) {
-    try {
-    await apiPokemon.get(name + "/")
-        .then(res => {
-          console.log("pokemon:")
-          console.log(res.data)
-          setPokemon({pokemon: res.data});
-          console.log("type:")
-          console.log(res.data.types[0].type.name)
-          getTypes(res.data.types[0].type.name);
-          document.title = res.data.name;
-        });
-      } catch(err) {
-          console.log(err)
-        }
-  }
+  async function updatePokemonData(value,useId) {
+    //get and set pokemon data
+    let data = await getPokemon(value, useId)
+    setPokemon({pokemon: data})
+    //update page title to pokemon name
+    document.title = data.name;
 
-  async function getTypes(name) {
-    console.log(name)
-    console.log("type")
-    try {
-    await apiTypes.get(name + "/")
-        .then(res => {
-          console.log("type: ")
-          console.log(res.data)
-          setTypes({types: res.data});
-          setLoading(false);
-        });
-      } catch(err) {
-          console.log(err)
-        }
-  }
+    //get and set pokemon type data using url from getPokemon
+    data = await getTypes(data.types[0].type.url, false)
+    setTypes({types: data})
 
-  async function getSpecies(name) {
-    console.log(name)
-    console.log("Step 2");
-    try {
-    await apiSpecies.get(name + "/")
-        .then(res => {
-          console.log("Step 3 | species: ")
-          console.log(res.data)
-          setSpecies({species: res.data});
-          console.log("url is: " + res.data.evolution_chain.url)
-          getEvolutionChain(res.data.evolution_chain.url, res.data.name)
-        });
-      } catch(err) {
-          console.log(err)
-        }
-  }
+    //get and set species data
+    data = await getSpecies(value, useId)
+    setSpecies({species: data})
 
-  async function getEvolution(url) {
-    console.log(url)
-    console.log("Step 5")
-    try {
-      await apiEvolutionSpecies.get(url)
-        .then(res => {
-          console.log("Step 6 | evolutionSpecies: ")
-          console.log(res.data)
-          setEvolutionChain(prevEvolution => {
-            return [...prevEvolution, { id: uuidv4(), evolution: [res.data]}]
-          })
-          url = res.data.evolution_chain.url
-          apiEvolution.get(url)
-            .then(res => {
-              console.log("Step 7 | you are here")
-              let evolvesTo = res.data.chain.evolves_to;
-              while (evolvesTo.length !== 0) {
-                let evolutionArray = [];
-                for(let a = 0; a < evolvesTo.length; a++){
-                  apiEvolutionSpecies.get(evolvesTo[a].species.url)
-                  .then(res => {
-                    evolutionArray.push(res.data)
-                  })
-                }
-                setEvolutionChain(prevEvolution => {
-                  return [...prevEvolution, { id: uuidv4(), evolution: evolutionArray}]
-                })
-                evolvesTo = evolvesTo[0].evolves_to;
-              }
-          })
-        })
-    } catch(err) {
-      console.log(err)
+    //reset evolution_chain data
+    let awaitClear = await setEvolutionChain([])
+
+    //get evolution_chain data
+    let evolutionData = await getEvolutionChain(data.evolution_chain.url);
+
+    //set default pokemon
+    data = await getSpecies(evolutionData.chain.species.url, false)
+    setEvolutionChain(prevEvolution => {
+      return [...prevEvolution, { id: uuidv4(), evolution: [data]}]
+    })
+
+    //set main evolution chain
+    let evolvesTo = evolutionData.chain.evolves_to;
+    //get data evolutions per chain part
+    while (evolvesTo.length !== 0) {
+      //reset evolutions per chain part        
+      let evolutionArray = [];
+
+      //get every evolution in chain part
+      for(let a = 0; a < evolvesTo.length; a++){
+        data =  await getSpecies(evolvesTo[a].species.url)
+        evolutionArray.push(data)
+      }        
+      //set data evolutions per chain part
+      setEvolutionChain(prevEvolution => {
+        return [...prevEvolution, { id: uuidv4(), evolution: evolutionArray}]
+      })
+       evolvesTo = evolvesTo[0].evolves_to
     }
+
+    //setLoading to false
+    setLoading(false)
+
   }
 
-  async function getEvolutionChain(url, name) {
-    //Step 1 get default
-    //step 2 save evolution data for default
-    //step 3 for each evolution get evolution data (get evolutionurl from speciesurl)
-    try {
-      await apiEvolution.get(url)
+  async function getPokemon(value, useID) {
+    let data
+
+    //check if value is id or url
+    if(useID === true) {
+      try {
+      //get data from api
+      data = await apiPokemon.get(value + "/")
         .then(res => {
-          let evolutionDefault = res.data.chain.species.url
-          console.log("Step 4 | evolution:")
-          console.log(evolutionDefault)
-          console.log(res.data)
-          setEvolutions({evolutions: res.data})
-          console.log("name is : " + res.data.chain.species.name)
-          getEvolution(evolutionDefault)
+          return res.data
         })
-    } catch(err) {
-      console.log(err)
+      } catch(err) {
+        console.log(err)
+      }
+    } else {
+      try {
+        //get data from api
+        data = await api.get(value)
+          .then(res => {
+            return res.data
+          })
+      } catch(err) {
+        console.log(err)
+      }
     }
+    return data
   }
 
-  async function updatePokemon() {
-    const name = pokemonNameRef.current.value;
-    await setEvolutionChain([]);
-    await getSpecies(name);
-    await getPokemon(name);
+  async function getTypes(value, useID) {
+    let data
+    if(useID === true) {
+      try {
+        //get data from api
+      data = await apiTypes.get(value + "/")
+        .then(res => {
+          return res.data
+        })
+      } catch(err) {
+        console.log(err)
+      }
+    } else {
+      try {
+        //get data from api
+        data = await api.get(value)
+          .then(res => {
+            return res.data
+          })
+      } catch(err) {
+        console.log(err)
+      }
+    }
+    return data
+  }
+
+  async function getSpecies(value, useID) {
+    let data
+    if(useID === true) {
+      try {
+      //get data from api
+      data = await apiSpecies.get(value + "/")
+        .then(res => {
+          return res.data
+        })
+      } catch(err) {
+        console.log(err)
+      }
+    } else {
+      try {
+        //get data from api
+        data = await api.get(value)
+          .then(res => {
+            return res.data
+          })
+      } catch(err) {
+        console.log(err)
+      }
+    }
+    return data
+  }
+
+  async function getEvolutionChain(value, useID) {
+    let data
+    if(useID === true) {
+      try {
+      //get data from api
+      data = await apiSpecies.get(value + "/")
+        .then(res => {
+          return res.data
+        })
+      } catch(err) {
+        console.log(err)
+      }
+    } else {
+      try {
+        //get data from api
+        data = await api.get(value)
+          .then(res => {
+            return res.data
+          })
+      } catch(err) {
+        console.log(err)
+      }
+    }
+    return data
+  }
+
+  async function getPokemonID(name) {
+    //get id of pokemon by name/id
+    let id = getPokemon(name, true)
+    return id
+  }
+
+  async function handleUpdatePokemon() {
+    //get value in input
+    const name = pokemonNameRef.current.value
+    //get id of pokemon from api
+    let data = await getPokemonID(name)
+    //run update function
+    await updatePokemonData(data.id, true)
     pokemonNameRef.current.value = null
   }
 
     return (
       <div className="App">
         <header className="App-header container">
-          <form action="#" onSubmit={updatePokemon}>
+          <form action="#" onSubmit={handleUpdatePokemon}>
             <input
               ref={pokemonNameRef} 
               type="text"
@@ -192,7 +246,7 @@ function App() {
           </a>
           
         </header>
-        <Pokedex pokemon={pokemon} evolutionChain={evolutionChain} evolutions={evolutions} types={types} species={species}/>
+        <Pokedex pokemon={pokemon} evolutionChain={evolutionChain} types={types} species={species}/>
       </div>
     );
   }

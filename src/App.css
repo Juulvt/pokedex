@@ -298,6 +298,22 @@ a, a:-webkit-any-link {
   width: 100%;
 }
 
+.evolution.amount-8 div {
+  flex: 0 1 clamp(100px, 20%, 200px);
+}
+
+.evolution div {
+  display: inline-flex;
+  align-items: center;
+  flex-direction: column;
+}
+
+a.evolution:not(.amount-1) {
+  flex: 1 1 clamp(100px, 40%, 400px);
+  flex-wrap: wrap;
+  flex-direction: row;
+}
+
 
 /* badge styles */
 .background-color-normal {

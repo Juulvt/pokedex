@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Pokedex({pokemon, evolutionChain, species, types, evolutions}) {
+export default function Pokedex({pokemon, evolutionChain, species, types}) {
 
 
   return (
@@ -109,7 +109,7 @@ export default function Pokedex({pokemon, evolutionChain, species, types, evolut
               if (i + 1 === evolutionChain.length) {
                 // Last one.
                 return(
-                  <a key={evolution} href="/" target="blank" className="evolution">
+                  <a key={evolution} href="/" target="blank" className={"evolution amount-"+evolution.evolution.length}>
                   {evolution.evolution.map(evo => {
                     return (
                       <div key={evo.id}>
@@ -122,18 +122,19 @@ export default function Pokedex({pokemon, evolutionChain, species, types, evolut
                 )
               } else {
                 // Not last one.
-                return(
-                  <a key={evolution} href="/" target="blank" className="evolution">
+                return([
+                  <a key={evolution} href="/" target="blank" className={"evolution amount-"+evolution.evolution.length}>
                   {evolution.evolution.map(evo => {
                     return (
                       <div key={evo.id}>
-                      <img alt="pokemon" src={"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/" + evo.id + ".png"}/>
-                      <span>#{evo.id}</span>
+                        <img alt="pokemon" src={"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/" + evo.id + ".png"}/>
+                        <span>#{evo.id}</span>
                       </div>
                     )
                   })}
-                  </a>
-                )
+                  </a>,
+                  <span>→</span>
+                ])
               }
               
             })}
